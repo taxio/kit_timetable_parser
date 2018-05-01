@@ -17,6 +17,7 @@ class TimeTableParser:
         lines = self.find_lines()
         verticals, sides = self.filter_frame_lines(lines)
         days_periods = self.trim_periods(verticals, sides)
+        self.trim_lessons(days_periods[0][0])   # for debug
 
     @staticmethod
     def convert_to_bin(orgn_img: np.ndarray, bin_thresh: int) -> np.ndarray:
@@ -29,6 +30,32 @@ class TimeTableParser:
         gray_img = cv2.cvtColor(orgn_img, cv2.COLOR_BGR2GRAY)
         _, bin_img = cv2.threshold(gray_img, bin_thresh, 255, cv2.THRESH_BINARY_INV)
         return bin_img
+
+    def calc_linear_rate(self, img: np.ndarray) -> float:
+        bin_img = self.convert_to_bin(img, 100)
+        height = img.shape[0]
+        width = img.shape[1]
+        self.logger.debug("calc linear rate")
+        self.logger.debug("w: {}, h: {}".format(width, height))
+        num_white = 0
+        if width > height:
+            for w in range(width):
+                max_val = 0
+                for h in range(height):
+                    max_val = max(bin_img[h][w], max_val)
+                if max_val == 255:
+                    num_white += 1
+            self.logger.debug("{} / {} = {}".format(num_white, width, num_white / width))
+            return num_white / width
+        else:
+            for h in range(height):
+                max_val = 255
+                for w in range(width):
+                    max_val = min(bin_img[h][w], max_val)
+                if max_val == 255:
+                    num_white += 1
+            self.logger.debug("{} / {} = {}".format(num_white, width, num_white / width))
+            return num_white / height
 
     def find_lines(self) -> list:
         """
@@ -145,4 +172,37 @@ class TimeTableParser:
 
         return days
 
+    def trim_lessons(self, period_image: np.ndarray) -> list:
+        """
+        各時間の画像から授業単体の部分をトリミングしてLessonオブジェクトに入れる．
+        :param period_image: 各時間の画像
+        :return: Lessonオブジェクトのリスト
+        """
+        bin_img = self.convert_to_bin(period_image, 100)
+        self.logger.debug("trim_lessons")
+        self.logger.debug("period image: {}".format(bin_img.shape))
+        line_thresh = int(min(bin_img.shape[0], bin_img.shape[1])/4)
+        lines = cv2.HoughLines(bin_img, 1, np.pi / 180.0,
+                               line_thresh, np.array([]), 0, 0)
+        n_lines, _, _ = lines.shape
+        height, width = bin_img.shape
+        self.logger.debug("found {} lines".format(n_lines))
+        for i in range(n_lines):
+            rho = lines[i][0][0]
+            theta = lines[i][0][1]
+            a = math.cos(theta)
+            b = math.sin(theta)
+            x0, y0 = a * rho, b * rho
+            theta = int(theta*180/np.pi)
+            pt1 = (int(x0 + width * (-b)), int(y0 + height * (a)))
+            pt2 = (int(x0 - width * (-b)), int(y0 - height * (a)))
+            if theta == 90 and rho > int(min(width, height)/10):
+                self.logger.debug("{}: rho: {}, theta: {}".format(i, rho, theta))
+                self.logger.debug("pt1: {}, pt2: {}".format(pt1, pt2))
+                linear_rato = self.calc_linear_rate(period_image[pt1[1]-1:pt1[1]+2, 0:])
+                if linear_rato < 0.90:
+                    cv2.line(period_image, pt1, pt2, (0, 0, 255), 1, cv2.LINE_AA)
 
+        cv2.imshow("period", period_image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
