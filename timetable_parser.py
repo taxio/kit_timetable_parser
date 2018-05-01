@@ -1,11 +1,16 @@
 import cv2
 import numpy as np
 import math
+from logging import getLogger, StreamHandler
 
 
 class TimeTableParser:
 
-    def __init__(self, image: np.ndarray):
+    def __init__(self, image: np.ndarray, logger=None):
+        # logger setting
+        self.logger = logger or getLogger(__name__)
+
+        # 時間割から各授業のオブジェクトを生成
         self.orgn_img = image
         self.bin_img = self.convert_to_bin(self.orgn_img, 100)
         self.width, self.height = self.bin_img.shape
@@ -32,7 +37,7 @@ class TimeTableParser:
         :return: 線のリスト
         """
         line_thresh = int(min(self.width, self.height)/2)
-        print("finding lines...")
+        self.logger.info("finding lines...")
         while True:
             lines = cv2.HoughLines(self.bin_img, 1, np.pi / 180.0, line_thresh, np.array([]), 0, 0)
             if lines is not None:
@@ -42,8 +47,8 @@ class TimeTableParser:
                 elif n_lines > 28:
                     line_thresh -= 10
                 else:
-                    print("found")
-                    print("num of lines:", n_lines)
+                    self.logger.info("found")
+                    self.logger.debug("num of lines: {}".format(n_lines))
                     break
 
         return lines
@@ -55,7 +60,7 @@ class TimeTableParser:
         :return: 縦線のリスト, 横線のリスト
         """
         n_lines, _, _ = lines.shape
-        print("finding frame line...")
+        self.logger.info("finding frame lines...")
         cands = list()
         for i in range(n_lines):
             rho = lines[i][0][0]
@@ -99,7 +104,7 @@ class TimeTableParser:
                 if len(verticals) == 8 and len(sides) == 6:
                     break
                 else:
-                    print("frame cannot found")
+                    self.logger.error("frame lines cannot found")
                     exit(1)
 
             if (len(verticals)+len(sides)) < 14:
@@ -107,18 +112,18 @@ class TimeTableParser:
             else:
                 avg_thresh += 1
 
-        print("found")
+        self.logger.info("found")
 
         # 縦線，横線ごとにソート
-        print("verticals")
+        self.logger.debug("verticals")
         verticals = sorted(verticals, key=lambda x: x['pt1'][0])
         for v in verticals:
-            print(v['pt1'], v['pt2'])
+            self.logger.debug("{}, {}".format(v['pt1'], v['pt2']))
 
-        print("sides")
+        self.logger.debug("sides")
         sides = sorted(sides, key=lambda x: x['pt1'][1])
         for s in sides:
-            print(s['pt1'], s['pt2'])
+            self.logger.debug("{}, {}".format(s['pt1'], s['pt2']))
 
         return verticals, sides
 
