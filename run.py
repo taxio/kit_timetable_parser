@@ -1,6 +1,6 @@
 import cv2
 from logging import getLogger, basicConfig, DEBUG, INFO
-from kit_timetable_rebuilder import TimeTableParser
+import kit_timetable_rebuilder as kitrb
 
 
 def main():
@@ -12,7 +12,7 @@ def main():
 
     img_name = "./img/H30_jikanwari_gakubu_1zen_ページ_1.png"
     orign_img = cv2.imread(img_name)
-    parser = TimeTableParser(orign_img)
+    parser = kitrb.TimeTableParser(orign_img)
 
 
 if __name__ == '__main__':
