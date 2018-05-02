@@ -1,7 +1,6 @@
 import cv2
-import numpy as np
-from timetable_parser import TimeTableParser
 from logging import getLogger, basicConfig, DEBUG, INFO
+from kit_timetable_rebuilder import TimeTableParser
 
 
 def main():

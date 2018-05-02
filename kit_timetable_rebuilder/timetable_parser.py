@@ -1,8 +1,8 @@
 import cv2
 import numpy as np
 import math
-from logging import getLogger, StreamHandler
-from lesson import Lesson
+from logging import getLogger
+from kit_timetable_rebuilder import Lesson
 
 
 class TimeTableParser:
