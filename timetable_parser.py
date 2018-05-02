@@ -32,30 +32,46 @@ class TimeTableParser:
         return bin_img
 
     def calc_linear_rate(self, img: np.ndarray) -> float:
+        """
+        画像内の線の分散を返す
+        :param img:
+        :return:
+        """
         bin_img = self.convert_to_bin(img, 100)
-        height = img.shape[0]
-        width = img.shape[1]
+        height, width = bin_img.shape
         self.logger.debug("calc linear rate")
-        self.logger.debug("w: {}, h: {}".format(width, height))
-        num_white = 0
-        if width > height:
-            for w in range(width):
-                max_val = 0
-                for h in range(height):
-                    max_val = max(bin_img[h][w], max_val)
-                if max_val == 255:
-                    num_white += 1
-            self.logger.debug("{} / {} = {}".format(num_white, width, num_white / width))
-            return num_white / width
-        else:
-            for h in range(height):
-                max_val = 255
-                for w in range(width):
-                    max_val = min(bin_img[h][w], max_val)
-                if max_val == 255:
-                    num_white += 1
-            self.logger.debug("{} / {} = {}".format(num_white, width, num_white / width))
-            return num_white / height
+        self.logger.debug("h: {}, w: {}".format(height, width))
+        line = list()
+
+        # 縦画像だった場合は転置
+        if height > width:
+            bin_img = bin_img.transpose()
+
+        # 縦軸方向に最大値を取った1次元の行列に変換
+        bin_img = bin_img.max(axis=0)
+
+        # 線の長さを取得
+        lengths = list()
+        is_line = False
+        buf = 0
+        for b in bin_img:
+            if is_line:
+                if b == 255:
+                    buf += 1
+                else:
+                    lengths.append(buf)
+                    is_line = False
+                    buf = 0
+            else:
+                if b == 255:
+                    is_line = True
+                    buf += 1
+        nd_lengths = np.empty(len(lengths))
+        nd_lengths[:] = lengths
+        var = np.var(nd_lengths)
+        self.logger.debug("var: {}".format(var))
+
+        return var.item()
 
     def find_lines(self) -> list:
         """
@@ -199,8 +215,8 @@ class TimeTableParser:
             if theta == 90 and rho > int(min(width, height)/10):
                 self.logger.debug("{}: rho: {}, theta: {}".format(i, rho, theta))
                 self.logger.debug("pt1: {}, pt2: {}".format(pt1, pt2))
-                linear_rato = self.calc_linear_rate(period_image[pt1[1]-1:pt1[1]+2, 0:])
-                if linear_rato < 0.90:
+                linear_rato = self.calc_linear_rate(period_image[pt1[1]-3:pt1[1]+4, 0:])
+                if linear_rato < 1.0:
                     cv2.line(period_image, pt1, pt2, (0, 0, 255), 1, cv2.LINE_AA)
 
         cv2.imshow("period", period_image)
