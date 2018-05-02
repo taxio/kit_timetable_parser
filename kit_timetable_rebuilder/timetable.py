@@ -1,5 +1,6 @@
 import numpy as np
 from logging import getLogger
+import kit_timetable_rebuilder as kitrb
 
 
 class TimeTable(object):

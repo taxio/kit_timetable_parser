@@ -4,6 +4,7 @@ import kit_timetable_rebuilder as kitrb
 import cv2
 import numpy as np
 
+
 class TestUtil(TestCase):
 
     def setUp(self):
@@ -12,12 +13,11 @@ class TestUtil(TestCase):
     def test_find_vertical_frames(self):
         kitrb.find_vertical_frames(self.orgn_img,
                                    num_vertical=8,
-                                   min_deg=90.0, max_deg=90.2)
-        kitrb.find_side_frames(self.orgn_img, 6, 0.0, 0.2)
+                                   min_deg=0.0, max_deg=0.2)
         eq_(True, True)
 
-    def test_find_side_frames(self):
-        kitrb.find_side_frames(self.orgn_img,
-                               num_side=6,
-                               min_deg=0.0, max_deg=0.2)
-        eq_(True, True)
+    # def test_find_side_frames(self):
+    #     kitrb.find_side_frames(self.orgn_img,
+    #                            num_side=6,
+    #                            min_deg=90.0, max_deg=90.2)
+    #     eq_(True, True)

@@ -28,15 +28,12 @@ def modify_hough_results(hough_results: list, img_size: tuple) -> list:
     for i in range(n_lines):
         rho = hough_results[i][0][0]
         rad = hough_results[i][0][1]
-        a = math.cos(rad)
-        b = math.cos(rad)
-        x0, y0 = a * rho, b * rho
-        pt1 = (int(x0 + width * (-b)), int(y0 + height * (a)))
-        pt2 = (int(x0 - width * (-b)), int(y0 - height * (a)))
+        x_seg = int(rho * math.cos(rad))
+        y_seg = int(rho * math.sin(rad))
         deg = rad * 180 / np.pi
         line = {
-            "pt1": pt1,
-            "pt2": pt2,
+            "x_seg": x_seg,
+            "y_seg": y_seg,
             "rho": rho,
             "deg": deg
         }
@@ -44,20 +41,22 @@ def modify_hough_results(hough_results: list, img_size: tuple) -> list:
     return lines
 
 
-def find_frame_lines(bin_img: np.ndarray, num_frame: int, base_thresh: int, min_deg: float, max_deg: float) -> list:
+def find_frame_lines(img: np.ndarray, num_frame: int, base_thresh: int, min_deg: float, max_deg: float) -> list:
+    bin_img = convert_to_bin(img, 100)
     thresh = base_thresh
     p_delta = 0
     delta = 0
+    upper_limit = int(num_frame * 2)
     while True:
         lines = cv2.HoughLines(bin_img, 1, np.pi / 180.0, thresh, np.array([]), 0, 0)
         if lines is not None:
             lines = modify_hough_results(lines, bin_img.shape)
             lines = extract_at_deg(lines, min_deg=min_deg, max_deg=max_deg)
-            print("thresh: {}, n_f: {}".format(thresh, len(lines)))
+            print("thresh: {}, found: {}".format(thresh, len(lines)))
             if len(lines) < num_frame:
                 thresh -= 1
                 delta = -1
-            elif len(lines) > num_frame:
+            elif len(lines) > upper_limit:
                 thresh += 1
                 delta = 1
             else:
@@ -71,26 +70,36 @@ def find_frame_lines(bin_img: np.ndarray, num_frame: int, base_thresh: int, min_
         if thresh > max(bin_img.shape) or thresh <= 0:
             raise AssertionError
 
-        # 値がピンポイントで見つからなかったらエラー
-        # TODO: 改善する
+        # 範囲内に線が見つからなかったらエラー
         if p_delta and p_delta != delta:
             raise AssertionError
         p_delta = delta
+
+    selects = list()
+    for line in lines:
+        var = calc_linear_rate(img, line)
+        selects.append([var, line])
+
+    selects = sorted(selects, key=lambda x:x[0])
+    selects = selects[:num_frame]
+
+    lines = list()
+    for s in selects:
+        print(s)
+        lines.append(s[1])
 
     return lines
 
 
 def find_vertical_frames(img: np.ndarray, num_vertical: int, min_deg: float, max_deg: float) -> list:
-    bin_img = convert_to_bin(img, 100)
-    thresh = int(bin_img.shape[0] / 2)  # height
-    verticals = find_frame_lines(bin_img, num_vertical, thresh, min_deg, max_deg)
+    thresh = int(img.shape[0] / 2)  # height
+    verticals = find_frame_lines(img, num_vertical, thresh, min_deg, max_deg)
     return verticals
 
 
 def find_side_frames(img: np.ndarray, num_side: int, min_deg: float, max_deg: float) -> list:
-    bin_img = convert_to_bin(img, 100)
-    thresh = int(bin_img.shape[1] / 2)  # width
-    sides = find_frame_lines(bin_img, num_side, thresh, min_deg, max_deg)
+    thresh = int(img.shape[1] / 2)  # width
+    sides = find_frame_lines(img, num_side, thresh, min_deg, max_deg)
     return sides
 
 
@@ -109,13 +118,27 @@ def extract_at_deg(lines: list, min_deg: float, max_deg: float) -> list:
     return selects
 
 
-def calc_linear_rate(img: np.ndarray) -> float:
-    """
-    画像内の線の分散を返す
-    :param img:
-    :return:
-    """
+def trim_line(img: np.ndarray, line: dict, buff: int) -> np.ndarray:
+    if int(line["deg"]) == 0:   # 縦線
+        img = img[:, max(line["x_seg"]-buff, 0): min(line["x_seg"]+buff+1, img.shape[1])]
+    elif int(line["deg"]) == 90:    # 横線
+        img = img[max(line["y_seg"]-buff, 0): min(line["y_seg"]+buff+1, img.shape[0]), :]
+    else:
+        raise ValueError
+
+    return img
+
+
+def debug_window(img: np.ndarray):
+    cv2.imshow("debug", img)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+
+def calc_linear_rate(img: np.ndarray, line: dict) -> float:
+
     bin_img = convert_to_bin(img, 100)
+    bin_img = trim_line(bin_img, line, buff=2)
     height, width = bin_img.shape
 
     # 縦画像だった場合は転置
@@ -142,11 +165,11 @@ def calc_linear_rate(img: np.ndarray) -> float:
                 is_line = True
                 buf += 1
     else:
-        lengths.append(buf)
+        if is_line:
+            lengths.append(buf)
 
     nd_lengths = np.empty(len(lengths))
     nd_lengths[:] = lengths
     var = np.var(nd_lengths)
-    # self.logger.debug("linear var: {}".format(var))
 
     return var.item()
