@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import math
 from logging import getLogger, StreamHandler
+from lesson import Lesson
 
 
 class TimeTableParser:
@@ -203,6 +204,7 @@ class TimeTableParser:
         n_lines, _, _ = lines.shape
         height, width = bin_img.shape
         self.logger.debug("found {} lines".format(n_lines))
+        frame_lines = list()
         for i in range(n_lines):
             rho = lines[i][0][0]
             theta = lines[i][0][1]
@@ -218,7 +220,18 @@ class TimeTableParser:
                 linear_rato = self.calc_linear_rate(period_image[pt1[1]-3:pt1[1]+4, 0:])
                 if linear_rato < 1.0:
                     cv2.line(period_image, pt1, pt2, (0, 0, 255), 1, cv2.LINE_AA)
+                    frame_line = {
+                        "pt1": pt1,
+                        "pt2": pt2
+                    }
+                    frame_lines.append(frame_line)
 
-        cv2.imshow("period", period_image)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        frame_lines = sorted(frame_lines, key=lambda x:x["pt1"][1])
+        lessons = list()
+        p_y = 0
+        for f in frame_lines:
+            lesson = Lesson(image=period_image[p_y:f["pt2"][1], 0:])
+            p_y = f["pt2"][1]
+
+        return lessons
+
