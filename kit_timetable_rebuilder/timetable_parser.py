@@ -1,8 +1,8 @@
 import cv2
 import numpy as np
 import math
-from logging import getLogger, StreamHandler
-from lesson import Lesson
+from logging import getLogger
+import kit_timetable_rebuilder as kitrb
 
 
 class TimeTableParser:
@@ -13,7 +13,7 @@ class TimeTableParser:
 
         # 時間割から各授業のオブジェクトを生成
         self.orgn_img = image
-        self.bin_img = self.convert_to_bin(self.orgn_img, 100)
+        self.bin_img = kitrb.convert_to_bin(self.orgn_img, 100)
         self.width, self.height = self.bin_img.shape
         lines = self.find_lines()
         verticals, sides = self.filter_frame_lines(lines)
@@ -22,60 +22,6 @@ class TimeTableParser:
             for p in ds:
                 self.trim_lessons(p)
         # self.trim_lessons(days_periods[0][0])   # for debug
-
-    @staticmethod
-    def convert_to_bin(orgn_img: np.ndarray, bin_thresh: int) -> np.ndarray:
-        """
-        カラー画像から2値画像に変換
-        :param orgn_img: カラー画像
-        :param bin_thresh: 2値化する際の閾値(今回はそもそも白黒画像なので適当でいい)
-        :return: 2値化画像
-        """
-        gray_img = cv2.cvtColor(orgn_img, cv2.COLOR_BGR2GRAY)
-        _, bin_img = cv2.threshold(gray_img, bin_thresh, 255, cv2.THRESH_BINARY_INV)
-        return bin_img
-
-    def calc_linear_rate(self, img: np.ndarray) -> float:
-        """
-        画像内の線の分散を返す
-        :param img:
-        :return:
-        """
-        bin_img = self.convert_to_bin(img, 100)
-        height, width = bin_img.shape
-
-        # 縦画像だった場合は転置
-        if height > width:
-            bin_img = bin_img.transpose()
-
-        # 縦軸方向に最大値を取った1次元の行列に変換
-        bin_img = bin_img.max(axis=0)
-
-        # 線の長さを取得
-        lengths = list()
-        is_line = False
-        buf = 0
-        for b in bin_img:
-            if is_line:
-                if b == 255:
-                    buf += 1
-                else:
-                    lengths.append(buf)
-                    is_line = False
-                    buf = 0
-            else:
-                if b == 255:
-                    is_line = True
-                    buf += 1
-        else:
-            lengths.append(buf)
-
-        nd_lengths = np.empty(len(lengths))
-        nd_lengths[:] = lengths
-        var = np.var(nd_lengths)
-        self.logger.debug("linear var: {}".format(var))
-
-        return var.item()
 
     def find_lines(self) -> list:
         """
@@ -198,7 +144,7 @@ class TimeTableParser:
         :param period_image: 各時間の画像
         :return: Lessonオブジェクトのリスト
         """
-        bin_img = self.convert_to_bin(period_image, 100)
+        bin_img = kitrb.convert_to_bin(period_image, 100)
         self.logger.debug("trim_lessons")
         self.logger.debug("period image: {}".format(bin_img.shape))
         line_thresh = int(min(bin_img.shape[0], bin_img.shape[1])/4)
@@ -219,7 +165,7 @@ class TimeTableParser:
             pt2 = (int(x0 - width * (-b)), int(y0 - height * (a)))
             if 90.0 < theta < 90.2 and rho > int(min(width, height)/100):
                 self.logger.debug("{}: rho: {}, theta: {}".format(i, rho, theta))
-                linear_rato = self.calc_linear_rate(period_image[pt1[1]-3:pt1[1]+4, 0:])
+                linear_rato = kitrb.calc_linear_rate(period_image[pt1[1]-3:pt1[1]+4, 0:])
                 if linear_rato < 1.0:
                     self.logger.debug("↑OK")
                     cv2.line(period_image, pt1, pt2, (0, 0, 255), 1, cv2.LINE_AA)
@@ -235,11 +181,8 @@ class TimeTableParser:
         lessons = list()
         p_y = 0
         for f in frame_lines:
-            lesson = Lesson(image=period_image[p_y:f["pt2"][1], 0:])
+            lesson = kitrb.Lesson(image=period_image[p_y:f["pt2"][1], 0:])
             p_y = f["pt2"][1]
-            cv2.imshow("lesson", lesson.image)
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
 
         return lessons
 
