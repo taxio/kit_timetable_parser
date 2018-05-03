@@ -11,13 +11,17 @@ class TestUtil(TestCase):
         self.orgn_img = cv2.imread("../img/H30_jikanwari_gakubu_1zen_ページ_1.png")
 
     def test_find_vertical_frames(self):
-        kitrb.find_vertical_frames(self.orgn_img,
+        lines = kitrb.find_vertical_frames(self.orgn_img,
                                    num_vertical=8,
                                    min_deg=0.0, max_deg=0.2)
+        for l in lines:
+            print(l)
         eq_(True, True)
 
     def test_find_side_frames(self):
-        kitrb.find_side_frames(self.orgn_img,
+        lines = kitrb.find_side_frames(self.orgn_img,
                                num_side=6,
                                min_deg=90.0, max_deg=90.2)
+        for l in lines:
+            print(l)
         eq_(True, True)

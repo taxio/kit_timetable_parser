@@ -52,7 +52,6 @@ def find_frame_lines(img: np.ndarray, num_frame: int, base_thresh: int, min_deg:
         if lines is not None:
             lines = modify_hough_results(lines, bin_img.shape)
             lines = extract_at_deg(lines, min_deg=min_deg, max_deg=max_deg)
-            print("thresh: {}, found: {}".format(thresh, len(lines)))
             if len(lines) < num_frame:
                 thresh -= 1
                 delta = -1
@@ -62,7 +61,6 @@ def find_frame_lines(img: np.ndarray, num_frame: int, base_thresh: int, min_deg:
             else:
                 break
         else:
-            print("thresh: {}, not found".format(thresh))
             thresh += 1
             delta = 1
 
@@ -80,6 +78,7 @@ def find_frame_lines(img: np.ndarray, num_frame: int, base_thresh: int, min_deg:
         line["lengths"] = line_lengths
         line["var"] = np.var(line_lengths)
 
+    # 分散度合いでソート，上位num_frame(欲しい枠線の数)だけ返す
     lines = sorted(lines, key=lambda x:x["var"])
     return lines[:num_frame]
 
@@ -87,12 +86,14 @@ def find_frame_lines(img: np.ndarray, num_frame: int, base_thresh: int, min_deg:
 def find_vertical_frames(img: np.ndarray, num_vertical: int, min_deg: float, max_deg: float) -> list:
     thresh = int(img.shape[0] / 2)  # height
     verticals = find_frame_lines(img, num_vertical, thresh, min_deg, max_deg)
+    verticals = sorted(verticals, key=lambda x:x["x_seg"])
     return verticals
 
 
 def find_side_frames(img: np.ndarray, num_side: int, min_deg: float, max_deg: float) -> list:
     thresh = int(img.shape[1] / 2)  # width
     sides = find_frame_lines(img, num_side, thresh, min_deg, max_deg)
+    sides = sorted(sides, key=lambda x:x["y_seg"])
     return sides
 
 
