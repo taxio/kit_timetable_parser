@@ -11,8 +11,7 @@ def main():
         basicConfig(level=INFO)
 
     img_name = "./img/H30_jikanwari_gakubu_1zen_ページ_1.png"
-    orign_img = cv2.imread(img_name)
-    parser = kitrb.TimeTableParser(orign_img)
+    kitrb.parse(img_name)
 
 
 if __name__ == '__main__':
