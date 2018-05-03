@@ -8,16 +8,11 @@ class TimeTable(object):
     def __init__(self, image: np.ndarray, logger=None):
         self.logger = logger or getLogger(__name__)
         self.image = image
+        bin_img = kitrb.convert_to_bin(image)
 
         # 枠線検出
-        verticals = kitrb.find_vertical_frames(image,
-                                               num_vertical=8,
-                                               min_deg=0.0,
-                                               max_deg=0.2)
-        sides = kitrb.find_side_frames(image,
-                                       num_side=6,
-                                       min_deg=90.0,
-                                       max_deg=90.2)
+        verticals = kitrb.find_vertical_frames(bin_img, num_vertical=8)
+        sides = kitrb.find_side_frames(bin_img, num_side=6)
 
         # 枠線に沿ってトリミング, Periodオブジェクトとして保持
         periods = list()
