@@ -16,8 +16,8 @@ class TestUtil(TestCase):
                                    min_deg=0.0, max_deg=0.2)
         eq_(True, True)
 
-    # def test_find_side_frames(self):
-    #     kitrb.find_side_frames(self.orgn_img,
-    #                            num_side=6,
-    #                            min_deg=90.0, max_deg=90.2)
-    #     eq_(True, True)
+    def test_find_side_frames(self):
+        kitrb.find_side_frames(self.orgn_img,
+                               num_side=6,
+                               min_deg=90.0, max_deg=90.2)
+        eq_(True, True)

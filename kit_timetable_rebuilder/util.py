@@ -75,20 +75,13 @@ def find_frame_lines(img: np.ndarray, num_frame: int, base_thresh: int, min_deg:
             raise AssertionError
         p_delta = delta
 
-    selects = list()
     for line in lines:
-        var = calc_linear_rate(img, line)
-        selects.append([var, line])
+        line_lengths = calc_linear_rate(img, line)
+        line["lengths"] = line_lengths
+        line["var"] = np.var(line_lengths)
 
-    selects = sorted(selects, key=lambda x:x[0])
-    selects = selects[:num_frame]
-
-    lines = list()
-    for s in selects:
-        print(s)
-        lines.append(s[1])
-
-    return lines
+    lines = sorted(lines, key=lambda x:x["var"])
+    return lines[:num_frame]
 
 
 def find_vertical_frames(img: np.ndarray, num_vertical: int, min_deg: float, max_deg: float) -> list:
@@ -135,7 +128,19 @@ def debug_window(img: np.ndarray):
     cv2.destroyAllWindows()
 
 
-def calc_linear_rate(img: np.ndarray, line: dict) -> float:
+def draw_line(img: np.ndarray, line: dict, color=(0, 0, 255), w=1):
+    if int(line["deg"]) == 0:
+        pt1 = (line["x_seg"], 0)
+        pt2 = (line["x_seg"], img.shape[0])
+    elif int(line["deg"]) == 90:
+        pt1 = (0, line["y_seg"])
+        pt2 = (img.shape[1], line["y_seg"])
+    else:
+        raise ValueError
+    cv2.line(img, pt1, pt2, color, w, cv2.LINE_AA)
+
+
+def calc_linear_rate(img: np.ndarray, line: dict) -> np.ndarray:
 
     bin_img = convert_to_bin(img, 100)
     bin_img = trim_line(bin_img, line, buff=2)
@@ -170,6 +175,6 @@ def calc_linear_rate(img: np.ndarray, line: dict) -> float:
 
     nd_lengths = np.empty(len(lengths))
     nd_lengths[:] = lengths
-    var = np.var(nd_lengths)
 
-    return var.item()
+    return nd_lengths
+
